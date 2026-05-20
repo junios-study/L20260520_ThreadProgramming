@@ -8,7 +8,8 @@
 
 using namespace std;
 
-char Buffer[1024] = { 0, };
+char SendBuffer[1024] = { 0, };
+char RecvBuffer[1024] = { 0, };
 
 unsigned WINAPI RecvThread(void* Argument)
 {
@@ -16,14 +17,14 @@ unsigned WINAPI RecvThread(void* Argument)
 
 	while (true)
 	{
-		int RecvBytes = recv(ServerSocket, Buffer, sizeof(Buffer), 0);
+		int RecvBytes = recv(ServerSocket, RecvBuffer, sizeof(RecvBuffer), 0);
 		if (RecvBytes <= 0)
 		{
 			cout << "recv fail " << endl;
 			break;
 		}
 
-		cout << "server : " << Buffer << " send" << endl;
+		cout << "server : " << RecvBuffer << " send" << endl;
 	}
 
 
@@ -37,9 +38,9 @@ unsigned WINAPI SendThread(void* Argument)
 
 	while (true)
 	{
-		cin.getline(Buffer, sizeof(Buffer));
+		cin.getline(SendBuffer, sizeof(SendBuffer));
 
-		int SentBytes = send(ServerSocket, Buffer, sizeof(Buffer), 0);
+		int SentBytes = send(ServerSocket, SendBuffer, sizeof(SendBuffer), 0);
 		if (SentBytes <= 0)
 		{
 			cout << "send fail." << endl;
