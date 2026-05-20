@@ -1,8 +1,21 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
+#define RAPIDJSON_HAS_STDSTRING 1
+
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
+
+
 #include <winsock2.h>
+#include <Windows.h>
 #include <iostream>
 #include <process.h>
+
+
+
+
+
 
 #pragma comment(lib, "ws2_32")
 
@@ -58,9 +71,47 @@ unsigned WINAPI SendThread(void* Argument)
 	return 0;
 }
 
+using namespace rapidjson;
+
 
 int main()
 {
+	// 1. Parse a JSON string into DOM.
+	const char* json = R"(
+{
+	"project": "rapidjson",
+	"stars": 10 ,
+	"name" : "박기원",
+	"result" : true
+}
+	)";
+
+	Document d;
+	d.Parse(json);
+
+	// 2. Modify it by DOM.
+	Value& s = d["stars"];
+	s.SetInt(s.GetInt() + 1);
+
+	cout << d["name"].GetString() << endl;
+
+	d["name"] = "김경준";
+
+	cout << d["result"].GetBool() << endl;
+
+	// 3. Stringify the DOM
+	StringBuffer buffer;
+	Writer<StringBuffer> writer(buffer);
+	d.Accept(writer);
+
+	// Output {"project":"rapidjson","stars":11}
+	std::cout << buffer.GetString() << std::endl;
+
+
+
+	return 0;
+
+
 	cout << "client" << endl;
 
 
@@ -89,6 +140,7 @@ int main()
 	//ResumeThread(ThreadHandles[1]);
 	//SuspendThread(ThreadHandles[0]);
 	//SuspendThread(ThreadHandles[1]);
+
 
 	//blocking
 	WaitForMultipleObjects(2, ThreadHandles, FALSE, INFINITE);
