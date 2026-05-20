@@ -63,6 +63,7 @@ int main()
 {
 	cout << "client" << endl;
 
+
 	WSAData wsaData;
 
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -86,7 +87,7 @@ int main()
 	ThreadHandles[1] = (HANDLE)_beginthreadex(0, 0, SendThread, &ServerSocket, /*CREATE_SUSPENDED*/0, 0);
 	//ResumeThread(ThreadHandles[0]);
 	//ResumeThread(ThreadHandles[1]);
-	SuspendThread(ThreadHandles[0]);
+	//SuspendThread(ThreadHandles[0]);
 	//SuspendThread(ThreadHandles[1]);
 
 	//blocking
