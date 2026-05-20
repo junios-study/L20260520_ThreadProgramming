@@ -2,4 +2,6 @@
 
 #include "pch.h"
 
-extern void SendAll(SOCKET ReceiverSocket, const char* Data, int Size);
+extern int SendAll(SOCKET ReceiverSocket, const char* Data, int Size);
+
+extern void DisconnectSocket(SOCKET DisconnectedSocket, fd_set* Sockets);

@@ -81,10 +81,21 @@ unsigned WINAPI SendThread(void* Argument)
 		PacketSize = htons(PacketSize);
 
 		//header
-		SendAll(ServerSocket, (char*)&PacketSize, 2);
+		int SentBytes = SendAll(ServerSocket, (char*)&PacketSize, 2);
+		if (SentBytes <= 0)
+		{
+			cout << "header send fail." << endl;
+			break;
+		}
 
 		//Data
-		SendAll(ServerSocket, JSONString.c_str(), ntohs(PacketSize));
+		SentBytes = SendAll(ServerSocket, JSONString.c_str(), ntohs(PacketSize));
+		if (SentBytes <= 0)
+		{
+			cout << "data send fail." << endl;
+			break;
+		}
+
 	}
 
 	return 0;
