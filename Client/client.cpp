@@ -11,11 +11,14 @@ using namespace std;
 char SendBuffer[1024] = { 0, };
 char RecvBuffer[1024] = { 0, };
 
+bool IsRecvThreadRunning = true;
+bool IsSendThreadRunning = true;
+
 unsigned WINAPI RecvThread(void* Argument)
 {
 	SOCKET ServerSocket = *(SOCKET*)Argument;
 
-	while (true)
+	while (IsRecvThreadRunning)
 	{
 		int RecvBytes = recv(ServerSocket, RecvBuffer, sizeof(RecvBuffer), 0);
 		if (RecvBytes <= 0)
@@ -36,7 +39,9 @@ unsigned WINAPI SendThread(void* Argument)
 	//책임은 사용하는 놈이 진다.
 	SOCKET ServerSocket = *(SOCKET*)Argument;
 
-	while (true)
+	char* P = new char[1024];
+
+	while (IsSendThreadRunning)
 	{
 		cin.getline(SendBuffer, sizeof(SendBuffer));
 
@@ -47,6 +52,8 @@ unsigned WINAPI SendThread(void* Argument)
 			break;
 		}
 	}
+
+	delete[] P;
 
 	return 0;
 }
@@ -72,17 +79,29 @@ int main()
 
 	cout << "client connect" << endl;
 
-	HANDLE ThreadHandles[2];
+	HANDLE ThreadHandles[2] = { 0, };
 
 	//nonblocking, asynchrous
-	ThreadHandles[0] = (HANDLE)_beginthreadex(0, 0, RecvThread, &ServerSocket, 0, 0);
-	ThreadHandles[1] = (HANDLE)_beginthreadex(0, 0, SendThread, &ServerSocket, 0, 0);
+	ThreadHandles[0] = (HANDLE)_beginthreadex(0, 0, RecvThread, &ServerSocket, /*CREATE_SUSPENDED*/0, 0);
+	ThreadHandles[1] = (HANDLE)_beginthreadex(0, 0, SendThread, &ServerSocket, /*CREATE_SUSPENDED*/0, 0);
+	//ResumeThread(ThreadHandles[0]);
+	//ResumeThread(ThreadHandles[1]);
+	SuspendThread(ThreadHandles[0]);
+	//SuspendThread(ThreadHandles[1]);
 
 	//blocking
 	WaitForMultipleObjects(2, ThreadHandles, FALSE, INFINITE);
 
-
 	closesocket(ServerSocket);
+
+	//TerminateThread(ThreadHandles[0], 0);
+	//TerminateThread(ThreadHandles[1], 0);
+	IsSendThreadRunning = false;
+	IsRecvThreadRunning = false;
+
+
+	CloseHandle(ThreadHandles[0]);
+	CloseHandle(ThreadHandles[1]);
 
 	WSACleanup();
 
