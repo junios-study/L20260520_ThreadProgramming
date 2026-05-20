@@ -69,6 +69,8 @@ int main()
 
 	connect(ServerSocket, (SOCKADDR*)&ServerSockAddr, sizeof(ServerSockAddr));
 
+	cout << "client connect" << endl;
+
 	HANDLE ThreadHandles[2];
 
 	//nonblocking, asynchrous

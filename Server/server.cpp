@@ -13,7 +13,7 @@ char Buffer[1024] = { 0, };
 //blocking, synchrous, multiplexing(polling)
 int main()
 {
-	cout << "server" << endl;
+	cout << "server start" << endl;
 
 	WSAData wsaData;
 
