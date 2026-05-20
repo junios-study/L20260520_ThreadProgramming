@@ -2,6 +2,7 @@
 
 #include <winsock2.h>
 #include <iostream>
+#include <process.h>
 
 #pragma comment(lib, "ws2_32")
 
@@ -9,9 +10,51 @@ using namespace std;
 
 char Buffer[1024] = { 0, };
 
+unsigned WINAPI RecvThread(void* Argument)
+{
+	SOCKET ServerSocket = *(SOCKET*)Argument;
+
+	while (true)
+	{
+		int RecvBytes = recv(ServerSocket, Buffer, sizeof(Buffer), 0);
+		if (RecvBytes <= 0)
+		{
+			cout << "recv fail " << endl;
+			break;
+		}
+
+		cout << "server : " << Buffer << " send" << endl;
+	}
+
+
+	return 0;
+}
+
+unsigned WINAPI SendThread(void* Argument)
+{
+	//책임은 사용하는 놈이 진다.
+	SOCKET ServerSocket = *(SOCKET*)Argument;
+
+	while (true)
+	{
+		cin.getline(Buffer, sizeof(Buffer));
+
+		int SentBytes = send(ServerSocket, Buffer, sizeof(Buffer), 0);
+		if (SentBytes <= 0)
+		{
+			cout << "send fail." << endl;
+			break;
+		}
+	}
+
+	return 0;
+}
+
 
 int main()
 {
+	cout << "client" << endl;
+
 	WSAData wsaData;
 
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -26,26 +69,15 @@ int main()
 
 	connect(ServerSocket, (SOCKADDR*)&ServerSockAddr, sizeof(ServerSockAddr));
 
-	while (true)
-	{
-		cin.getline(Buffer, sizeof(Buffer));
+	HANDLE ThreadHandles[2];
 
-		int SentBytes = send(ServerSocket, Buffer, sizeof(Buffer), 0);
-		if (SentBytes <= 0)
-		{
-			cout << "send fail." << endl;
-			break;
-		}
+	//nonblocking, asynchrous
+	ThreadHandles[0] = (HANDLE)_beginthreadex(0, 0, RecvThread, &ServerSocket, 0, 0);
+	ThreadHandles[1] = (HANDLE)_beginthreadex(0, 0, SendThread, &ServerSocket, 0, 0);
 
-		int RecvBytes = recv(ServerSocket, Buffer, sizeof(Buffer), 0);
-		if (RecvBytes <= 0)
-		{
-			cout << "recv fail " << endl;
-			break;
-		}
+	//blocking
+	WaitForMultipleObjects(2, ThreadHandles, FALSE, INFINITE);
 
-		cout << "server" << Buffer << " send" << endl;
-	}
 
 	closesocket(ServerSocket);
 

@@ -13,6 +13,8 @@ char Buffer[1024] = { 0, };
 //blocking, synchrous, multiplexing(polling)
 int main()
 {
+	cout << "server" << endl;
+
 	WSAData wsaData;
 
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
