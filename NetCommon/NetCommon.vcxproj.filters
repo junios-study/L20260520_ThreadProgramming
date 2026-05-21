@@ -39,7 +39,7 @@
     <ClInclude Include="S2C_Spawn.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="S2C_Destory.h">
+    <ClInclude Include="S2C_Destroy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C2S_Move.h">
@@ -74,7 +74,7 @@
     <ClCompile Include="S2C_Spawn.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="S2C_Destory.cpp">
+    <ClCompile Include="S2C_Destroy.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="C2S_Move.cpp">
