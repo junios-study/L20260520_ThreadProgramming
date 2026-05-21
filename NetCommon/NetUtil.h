@@ -9,6 +9,9 @@
 #include "S2C_Spawn.h"
 #include "S2C_Destroy.h"
 
+#include "SessionManager.h"
+
+
 enum class EPacketType : unsigned short
 {
 	C2S_Login = 100,
@@ -26,8 +29,22 @@ struct Header
 {
 	unsigned short PacketSize;
 	unsigned short PacketType;
+
+	void MakeHeader(int InPakcetSize, EPacketType InPacketType)
+	{
+		PacketSize = htons(InPakcetSize);
+		PacketType = htons(static_cast<unsigned short>(InPacketType));
+	}
+
+	void NetworkToHost()
+	{
+		PacketSize = ntohs(PacketSize);
+		PacketType = ntohs(PacketType);
+	}
 };
 #pragma pack(pop)
+
+
 
 constexpr unsigned short HeaderSize = sizeof(Header);
 

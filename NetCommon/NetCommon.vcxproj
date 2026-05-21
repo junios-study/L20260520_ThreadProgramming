@@ -146,6 +146,7 @@
     <ClInclude Include="S2C_Login.h" />
     <ClInclude Include="S2C_Move.h" />
     <ClInclude Include="S2C_Spawn.h" />
+    <ClInclude Include="SessionManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="C2S_Login.cpp" />
@@ -164,6 +165,7 @@
     <ClCompile Include="S2C_Login.cpp" />
     <ClCompile Include="S2C_Move.cpp" />
     <ClCompile Include="S2C_Spawn.cpp" />
+    <ClCompile Include="SessionManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
