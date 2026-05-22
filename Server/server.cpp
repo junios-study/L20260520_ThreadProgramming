@@ -195,6 +195,8 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, const Header& InH
 //blocking, synchrous, multiplexing(polling)
 int main()
 {
+	srand((unsigned int)time(nullptr));
+
 	cout << "server start" << endl;
 
 	WSAData wsaData;

@@ -67,18 +67,18 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, const Header& InH
 		}
 		break;
 	case EPacketType::S2C_Destroy:
-	{
-		S2C_Destroy DestroyPacket;
-		DestroyPacket.Parse(InBuffer);
+		{
+			S2C_Destroy DestroyPacket;
+			DestroyPacket.Parse(InBuffer);
 
-		Session* FindSession = MySessionManager.GetSession(DestroyPacket.ClientSocket);
+			Session* FindSession = MySessionManager.GetSession(DestroyPacket.ClientSocket);
 
-		std::cout << "Quit : " << FindSession->ClientSocket << endl;
+			std::cout << "Quit : " << FindSession->ClientSocket << endl;
 
-		MySessionManager.Delete(*FindSession);
+			MySessionManager.Delete(*FindSession);
 
-	}
-	break;
+		}
+		break;
 	}
 
 
