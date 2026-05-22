@@ -42,7 +42,7 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, const Header& InH
 
 		//header
 		Header DataHeader;
-		DataHeader.MakeHeader((int)Data.ToString().length(), EPacketType::S2C_Login);
+		DataHeader.MakeHeader((int)(Data.ToString().length()), EPacketType::S2C_Login);
 		int SentBytes = SendAll(ProcessSocket, (char*)&DataHeader, HeaderSize);
 		if (SentBytes <= 0)
 		{
@@ -50,7 +50,7 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, const Header& InH
 		}
 
 		//Data
-		SentBytes = SendAll(ProcessSocket, (char*)&Data, (int)Data.ToString().length());
+		SentBytes = SendAll(ProcessSocket, Data.ToString().c_str(), (int)(Data.ToString().length()));
 		if (SentBytes <= 0)
 		{
 			cout << "Data send fail." << endl;
