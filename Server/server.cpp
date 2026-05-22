@@ -48,14 +48,14 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, const Header& InH
 			int SentBytes = SendAll(ProcessSocket, (char*)&DataHeader, HeaderSize);
 			if (SentBytes <= 0)
 			{
-				cout << "header send fail." << endl;
+				std::cout << "header send fail." << endl;
 			}
 
 			//Data
 			SentBytes = SendAll(ProcessSocket, Data.ToString().c_str(), (int)(Data.ToString().length()));
 			if (SentBytes <= 0)
 			{
-				cout << "Data send fail." << endl;
+				std::cout << "Data send fail." << endl;
 			}
 
 			//접속한 모든 유저한테 현재 모든 유저의 정보를 보내준다.
@@ -75,14 +75,14 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, const Header& InH
 					int SentBytes = SendAll(Receiver.ClientSocket, (char*)&SpawnHeader, HeaderSize);
 					if (SentBytes <= 0)
 					{
-						cout << "header send fail." << endl;
+						std::cout << "header send fail." << endl;
 					}
 
 					//Data
 					SentBytes = SendAll(Receiver.ClientSocket, SpawnData.ToString().c_str(), (int)(SpawnData.ToString().length()));
 					if (SentBytes <= 0)
 					{
-						cout << "Data send fail." << endl;
+						std::cout << "Data send fail." << endl;
 					}
 				}
 			}
@@ -91,7 +91,54 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, const Header& InH
 
 		case EPacketType::C2S_Move:
 		{
+			C2S_Move MovePacket;
+			MovePacket.Parse(InBuffer);
+			Session* FindSession = MySessionManager.GetSession(MovePacket.ClientSocket);;
+			switch (MovePacket.Direction)
+			{
+				case 'W':
+				case 'w':
+					 FindSession->Y--;
+					 break;
+				case 'S':
+				case 's':
+					FindSession->Y++;
+					break;
+				case 'A':
+				case 'a':
+					FindSession->X--;
+					break;
+				case 'D':
+				case 'd':
+					FindSession->X++;
+					break;
+			}
 
+			S2C_Move MoveData;
+			MoveData.ClientSocket = FindSession->ClientSocket;
+			MoveData.X = FindSession->X;
+			MoveData.Y = FindSession->Y;
+
+			Header MoveHeader;
+			MoveHeader.MakeHeader((int)MoveData.ToString().length(), EPacketType::S2C_Move);
+
+			//모든 유저한테 이동 패킷 보내줌
+			for (auto Receiver : MySessionManager.SessionList)
+			{
+				//header
+				int SentBytes = SendAll(Receiver.ClientSocket, (char*)&MoveHeader, HeaderSize);
+				if (SentBytes <= 0)
+				{
+					std::cout << "header send fail." << endl;
+				}
+
+				//Data
+				SentBytes = SendAll(Receiver.ClientSocket, MoveData.ToString().c_str(), (int)(MoveData.ToString().length()));
+				if (SentBytes <= 0)
+				{
+					std::cout << "Data send fail." << endl;
+				}
+			}
 		}
 		break;
 	}

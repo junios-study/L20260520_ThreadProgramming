@@ -55,6 +55,17 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, const Header& InH
 			MySessionManager.Add(InSession);
 		}
 		break;
+	case EPacketType::S2C_Move:
+		{
+			S2C_Move MoveData;
+			MoveData.Parse(InBuffer);
+			Session* FindSession = MySessionManager.GetSession(MoveData.ClientSocket);
+			FindSession->X = MoveData.X;
+			FindSession->Y = MoveData.Y;
+
+			std::cout << MoveData.ToString() << endl;
+		}
+		break;
 	}
 }
 
