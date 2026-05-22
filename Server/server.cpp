@@ -27,6 +27,8 @@ void DisconnectSocket(SOCKET DisconnectedSocket, fd_set* Sockets)
 
 	getpeername(ClosedSocket, (SOCKADDR*)&ClosedSockAddr, &ClosedSockAddrLength);
 
+	cout << "disconnect : " << ClosedSocket << endl;
+
 	cout << "disconnect : " << inet_ntoa(ClosedSockAddr.sin_addr) << endl;
 
 	FD_CLR(ClosedSocket, Sockets);
