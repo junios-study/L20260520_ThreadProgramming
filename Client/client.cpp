@@ -29,9 +29,18 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, const Header& InH
 	switch ((EPacketType)InHeader.PacketType)
 	{
 	case EPacketType::S2C_Login:
-		S2C_Login LoginPacket;
-		LoginPacket.Parse(InBuffer);
-		cout << LoginPacket.ToString() << endl;
+		{
+			S2C_Login LoginPacket;
+			LoginPacket.Parse(InBuffer);
+			cout << LoginPacket.ToString() << endl;
+		}
+		break;
+	case EPacketType::S2C_Spawn:
+		{
+			S2C_Spawn SpawnData;
+			SpawnData.Parse(InBuffer);
+			cout << SpawnData.ToString() << endl;
+		}
 		break;
 	}
 }
