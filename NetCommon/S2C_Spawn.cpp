@@ -26,5 +26,5 @@ std::string S2C_Spawn::ToString()
     rapidjson::Writer<rapidjson::StringBuffer> Writer(Buffer);
     JSONDocument.Accept(Writer);
 
-    return std::string();
+    return Buffer.GetString();
 }

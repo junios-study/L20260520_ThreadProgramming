@@ -173,6 +173,8 @@ int main()
 
 	closesocket(ServerSocket);
 
+	cout << "End Thread" << endl;
+
 	//TerminateThread(ThreadHandles[0], 0);
 	//TerminateThread(ThreadHandles[1], 0);
 	IsSendThreadRunning = false;
