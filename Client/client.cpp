@@ -1,10 +1,7 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
-
-#include "ChatPacket.h"
 #include "NetUtil.h"
 
-#include <winsock2.h>
 #include <Windows.h>
 #include <iostream>
 #include <process.h>
@@ -21,8 +18,7 @@
 
 using namespace std;
 
-char SendBuffer[1024] = { 0, };
-char RecvBuffer[1024] = { 0, };
+char RecvBuffer[65536] = { 0, };
 
 bool IsRecvThreadRunning = true;
 bool IsSendThreadRunning = true;
@@ -40,7 +36,7 @@ std::mutex KeyBufferLock;
 
 
 void Render();
-void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, const Header& InHeader);
+void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer);
 unsigned WINAPI RecvThread(void* Argument);
 unsigned WINAPI SendThread(void* Argument);
 
@@ -210,53 +206,55 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer)
 {
 	auto UserPacketData = UserPacket::GetPacketData(InBuffer);
 
+	//std::cout << EnumNamePacketType(UserPacketData->data_type()) << std::endl;
 
 	switch (UserPacketData->data_type())
 	{
-	case UserPacket::PacketType_S2C_Login:
-	{
-		MyClientID = UserPacketData->data_as_S2C_Login()->client_socket_id();
-	}
-	break;
-	case UserPacket::PacketType_S2C_Spawn:
-	{
-		Session InSession;
-		auto SpawnData = UserPacketData->data_as_S2C_Spawn();
-		InSession.ClientSocket = SpawnData->client_socket_id();
-		InSession.Shape = SpawnData->shape();
-		InSession.X = SpawnData->position()->x();
-		InSession.Y = SpawnData->position()->y();
-		InSession.R = SpawnData->color()->r();
-		InSession.G = SpawnData->color()->g();
-		InSession.B = SpawnData->color()->b();
-
+		case UserPacket::PacketType_S2C_Login:
 		{
-			lock_guard<std::mutex> lock(SessionLock);
-			MySessionManager.Add(InSession);
+			MyClientID = UserPacketData->data_as_S2C_Login()->client_socket_id();
 		}
-		//		Render();
-	}
-	break;
-	case UserPacket::PacketType_S2C_Move:
-	{
-		auto MoveData = UserPacketData->data_as_S2C_Spawn();
-
-		Session* FindSession = MySessionManager.GetSession(MoveData->client_socket_id());
-		FindSession->X = MoveData->position()->x();
-		FindSession->Y = MoveData->position()->y();
-	}
-	break;
-	case UserPacket::PacketType_S2C_Destroy:
-	{
-		auto DestroyPacket = UserPacketData->data_as_S2C_Destroy();
-
-		Session* FindSession = MySessionManager.GetSession(DestroyPacket->client_socket_id());
+		break;
+		case UserPacket::PacketType_S2C_Spawn:
 		{
-			lock_guard<std::mutex> lock(SessionLock);
-			MySessionManager.Delete(*FindSession);
+			Session InSession;
+			auto SpawnData = UserPacketData->data_as_S2C_Spawn();
+			InSession.ClientSocket = SpawnData->client_socket_id();
+			InSession.Shape = SpawnData->shape();
+			InSession.X = SpawnData->position()->x();
+			InSession.Y = SpawnData->position()->y();
+			InSession.R = SpawnData->color()->r();
+			InSession.G = SpawnData->color()->g();
+			InSession.B = SpawnData->color()->b();
+
+			{
+				lock_guard<std::mutex> lock(SessionLock);
+				MySessionManager.Add(InSession);
+			}
+			//		Render();
 		}
-	}
-	break;
+		break;
+		case UserPacket::PacketType_S2C_Move:
+		{
+			auto MoveData = UserPacketData->data_as_S2C_Move();
+
+			SOCKET SocketID = MoveData->client_socket_id();
+			Session* FindSession = MySessionManager.GetSession(SocketID);
+			FindSession->X = MoveData->position()->x();
+			FindSession->Y = MoveData->position()->y();
+		}
+		break;
+		case UserPacket::PacketType_S2C_Destroy:
+		{
+			auto DestroyPacket = UserPacketData->data_as_S2C_Destroy();
+
+			Session* FindSession = MySessionManager.GetSession((SOCKET)DestroyPacket->client_socket_id());
+			{
+				lock_guard<std::mutex> lock(SessionLock);
+				MySessionManager.Delete(*FindSession);
+			}
+		}
+		break;
 	}
 }
 
@@ -268,6 +266,7 @@ unsigned WINAPI RecvThread(void* Argument)
 
 	while (IsRecvThreadRunning)
 	{
+		memset(RecvBuffer, 0, sizeof(RecvBuffer));
 		int RecvBytes = RecvAll(ServerSocket, RecvBuffer);
 		if (RecvBytes <= 0)
 		{
