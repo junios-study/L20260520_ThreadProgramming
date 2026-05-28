@@ -41,6 +41,12 @@ void DisconnectSocket(SOCKET DisconnectedSocket, fd_set* Sockets)
 		(uint16_t)ClosedSocket
 	);
 
+	auto UserPacketData = UserPacket::CreatePacketData(
+		SendBuilder,
+		UserPacket::PacketType_S2C_Destroy,
+		DestroyData.Union()
+	);
+
 	SendBuilder.Finish(DestroyData);
 	
 	//dangling pointer
