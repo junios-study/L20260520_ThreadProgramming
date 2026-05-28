@@ -48,7 +48,6 @@ unsigned WINAPI SendThread(void* Argument);
 std::queue<int> KeyBuffer;
 //KeyBuffer -> PacketBuffer
 
-
 int SDL_main(int Argc, char* Argv[])
 {
 	//Object µø±‚»≠(Lock, Lockfree)
