@@ -53,7 +53,7 @@ struct Header
 constexpr unsigned short HeaderSize = sizeof(Header);
 
 extern int SendAll(SOCKET TargetSocket, const flatbuffers::FlatBufferBuilder& Builder);
-
+extern int RecvAll(SOCKET SourceSocket, char* OutData);
 
 extern int RecvAll(SOCKET SourceSocket, char* OutData, int Size);
 extern int SendAll(SOCKET TargetSocket, const char* InData, int Size);

@@ -47,6 +47,31 @@ int SendAll(SOCKET TargetSocket, const char* Data, int Size)
 	return WantSendDataSize;
 }
 
+int RecvAll(SOCKET SourceSocket, char* OutData)
+{
+	int PacketSize = 0;
+	int RecvLength = 0;
+
+	//header, size
+	RecvLength = ::recv(SourceSocket, (char*)&PacketSize, 2, MSG_WAITALL);
+	if (RecvLength <= 0)
+	{
+		return RecvLength;
+	}
+
+	PacketSize = ntohs(PacketSize);
+
+	RecvLength = ::recv(SourceSocket, OutData, PacketSize, MSG_WAITALL);
+	if (RecvLength <= 0)
+	{
+		return RecvLength;
+	}
+
+	return RecvLength;
+
+}
+
+
 int RecvAll(SOCKET SourceSocket, char* OutData, int Size)
 {
 	int RecvBytes = recv(SourceSocket, OutData, Size, MSG_WAITALL);

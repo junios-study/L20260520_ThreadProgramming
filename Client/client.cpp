@@ -77,6 +77,7 @@ int SDL_main(int Argc, char* Argv[])
 
 	std::cout << "client connect" << endl;
 
+	//memory(Data) -> ByteArray(char []) -> Serialize(flatbuffer)
 	flatbuffers::FlatBufferBuilder SendBuilder;
 	auto C2S_LoginData = UserPacket::CreateC2S_Login(
 		SendBuilder,
@@ -93,7 +94,6 @@ int SDL_main(int Argc, char* Argv[])
 	SendBuilder.Finish(UserPacketData);
 
 	SendAll(ServerSocket, SendBuilder);
-
 
 	HANDLE ThreadHandles[2] = { 0, };
 
@@ -206,32 +206,29 @@ void Render()
 
 }
 
-void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, const Header& InHeader)
+void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer)
 {
-	switch ((EPacketType)InHeader.PacketType)
+	auto UserPacketData = UserPacket::GetPacketData(InBuffer);
+
+
+	switch (UserPacketData->data_type())
 	{
-	case EPacketType::S2C_Login:
+	case UserPacket::PacketType_S2C_Login:
 	{
-		S2C_Login LoginPacket;
-		LoginPacket.Parse(InBuffer);
-		//std::cout << LoginPacket.ToString() << endl;
-		MyClientID = LoginPacket.ClientSocketID;
+		MyClientID = UserPacketData->data_as_S2C_Login()->client_socket_id();
 	}
 	break;
-	case EPacketType::S2C_Spawn:
+	case UserPacket::PacketType_S2C_Spawn:
 	{
-		S2C_Spawn SpawnData;
-		SpawnData.Parse(InBuffer);
-		//std::cout << SpawnData.ToString() << endl;
-
 		Session InSession;
-		InSession.ClientSocket = SpawnData.ClientSocket;
-		InSession.Shape = SpawnData.Shape;
-		InSession.X = SpawnData.X;
-		InSession.Y = SpawnData.Y;
-		InSession.R = SpawnData.R;
-		InSession.G = SpawnData.G;
-		InSession.B = SpawnData.B;
+		auto SpawnData = UserPacketData->data_as_S2C_Spawn();
+		InSession.ClientSocket = SpawnData->client_socket_id();
+		InSession.Shape = SpawnData->shape();
+		InSession.X = SpawnData->position()->x();
+		InSession.Y = SpawnData->position()->y();
+		InSession.R = SpawnData->color()->r();
+		InSession.G = SpawnData->color()->g();
+		InSession.B = SpawnData->color()->b();
 
 		{
 			lock_guard<std::mutex> lock(SessionLock);
@@ -240,32 +237,24 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer, const Header& InH
 		//		Render();
 	}
 	break;
-	case EPacketType::S2C_Move:
+	case UserPacket::PacketType_S2C_Move:
 	{
-		S2C_Move MoveData;
-		MoveData.Parse(InBuffer);
-		Session* FindSession = MySessionManager.GetSession(MoveData.ClientSocket);
-		FindSession->X = MoveData.X;
-		FindSession->Y = MoveData.Y;
+		auto MoveData = UserPacketData->data_as_S2C_Spawn();
 
-		//std::cout << MoveData.ToString() << endl;
-//		Render();
+		Session* FindSession = MySessionManager.GetSession(MoveData->client_socket_id());
+		FindSession->X = MoveData->position()->x();
+		FindSession->Y = MoveData->position()->y();
 	}
 	break;
-	case EPacketType::S2C_Destroy:
+	case UserPacket::PacketType_S2C_Destroy:
 	{
-		S2C_Destroy DestroyPacket;
-		DestroyPacket.Parse(InBuffer);
+		auto DestroyPacket = UserPacketData->data_as_S2C_Destroy();
 
-		Session* FindSession = MySessionManager.GetSession(DestroyPacket.ClientSocket);
-
-		//std::cout << "Quit : " << FindSession->ClientSocket << endl;
-
+		Session* FindSession = MySessionManager.GetSession(DestroyPacket->client_socket_id());
 		{
 			lock_guard<std::mutex> lock(SessionLock);
 			MySessionManager.Delete(*FindSession);
 		}
-		//		Render();
 	}
 	break;
 	}
@@ -279,29 +268,14 @@ unsigned WINAPI RecvThread(void* Argument)
 
 	while (IsRecvThreadRunning)
 	{
-		unsigned short PacketSize = 0;
-
-		//header
-		Header DataHeader;
-		int RecvBytes = RecvAll(ServerSocket, (char*)&DataHeader, HeaderSize);
+		int RecvBytes = RecvAll(ServerSocket, RecvBuffer);
 		if (RecvBytes <= 0)
 		{
-			std::cout << "header recv fail " << endl;
+			std::cout << "recv fail " << endl;
 			break;
 		}
 
-		DataHeader.NetworkToHost();
-
-		memset(RecvBuffer, 0, sizeof(RecvBuffer));
-		//data JSON
-		RecvBytes = RecvAll(ServerSocket, RecvBuffer, DataHeader.PacketSize);
-		if (RecvBytes <= 0)
-		{
-			std::cout << "Data recv fail " << endl;
-			break;
-		}
-
-		ProcessPacket(ServerSocket, RecvBuffer, DataHeader);
+		ProcessPacket(ServerSocket, RecvBuffer);
 	}
 
 
@@ -320,33 +294,30 @@ unsigned WINAPI SendThread(void* Argument)
 			YieldProcessor();
 			//Sleep(0);
 			continue;
-		}
 
-		C2S_Move MoveData;
-		MoveData.ClientSocket = MyClientID;
+		}
+		flatbuffers::FlatBufferBuilder SendBuilder;
+
+		flatbuffers::Offset<UserPacket::C2S_Move> C2S_MoveData;
 		{
 			lock_guard<std::mutex> KeyLock(KeyBufferLock);
-			MoveData.Direction = KeyBuffer.front();
+			C2S_MoveData = UserPacket::CreateC2S_Move(
+				SendBuilder,
+				(uint16_t)MyClientID,
+				KeyBuffer.front()
+			);
 			KeyBuffer.pop();
 		}
 
-		//header
-		Header DataHeader;
-		DataHeader.MakeHeader((int)(MoveData.ToString().length()), EPacketType::C2S_Move);
-		int SentBytes = SendAll(ServerSocket, (char*)&DataHeader, HeaderSize);
-		if (SentBytes <= 0)
-		{
-			std::cout << "header send fail." << endl;
-		}
+		auto UserPacketData = UserPacket::CreatePacketData(
+			SendBuilder,
+			UserPacket::PacketType_C2S_Move,
+			C2S_MoveData.Union()
+		);
 
-		//Data
-		SentBytes = SendAll(ServerSocket, MoveData.ToString().c_str(), (int)(MoveData.ToString().length()));
-		if (SentBytes <= 0)
-		{
-			std::cout << "Data send fail." << endl;
-		}
+		SendBuilder.Finish(UserPacketData);
 
-
+		SendAll(ServerSocket, SendBuilder);
 	}
 
 	return 0;
