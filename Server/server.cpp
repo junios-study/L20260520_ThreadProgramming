@@ -5,6 +5,19 @@
 #include <winsock2.h>
 #include <iostream>
 
+#include "jdbc/mysql_connection.h"
+#include "jdbc/cppconn/driver.h"
+#include "jdbc/cppconn/exception.h"
+#include "jdbc/cppconn/resultset.h"
+#include "jdbc/cppconn/statement.h"
+#include "jdbc/cppconn/prepared_statement.h"
+
+#ifndef _DEBUG
+#pragma comment(lib, "mysqlcppconn")
+#else
+#pragma comment(lib, "debug/mysqlcppconn")
+#endif //_DEBUG
+
 
 
 #pragma comment(lib, "ws2_32")
@@ -15,6 +28,87 @@ using namespace std;
 char Buffer[65536] = { 0, };
 
 SessionManager MySessionManager;
+
+sql::Driver* MyDriver; //workbench
+sql::Connection* MyConnection; //접속 정보
+//sql::Statement* MyStatement; //쿼리 창
+sql::ResultSet* MyResultSet; //결과 창
+sql::PreparedStatement* MyPreparedStatement; //쿼리를 만들때 injection 방어함.
+
+void ConnectDB()
+{
+	try
+	{
+		MyDriver = get_driver_instance();
+		MyConnection = MyDriver->connect("tcp://127.0.0.1", "junios", "qweasd123");
+
+		MyConnection->setSchema("membership");
+	}
+	catch (sql::SQLException Exception)
+	{
+		std::cout << Exception.what() << std::endl;
+		std::cout << Exception.getSQLState() << std::endl;
+	}
+}
+
+
+bool Login(std::string UserID, std::string Password)
+{
+	//Stored Procesdure를 사용함.
+	sql::SQLString Query = "select * from user where `user_id` = ? and `user_pw` = sha2( ?, 512) and is_deleted = 'N';";
+
+	MyPreparedStatement = MyConnection->prepareStatement(Query);
+	MyPreparedStatement->setString(1, UserID);
+	MyPreparedStatement->setString(2, Password);
+	MyResultSet = MyPreparedStatement->executeQuery();
+
+	std::cout << Query << std::endl;
+
+	if (MyResultSet->rowsCount() == 0)
+	{
+		//Redis와 같은 캐시 서버에 저장
+		//hash 키값을 전송함.
+		std::cout << "아이디 비번이 틀립니다.";
+
+		return false;
+	}
+	else
+	{
+		return true;
+	}
+}
+
+bool Signup(std::string UserID, std::string Password, std::string Name)
+{
+	try
+	{
+		//SQL X
+		sql::SQLString Query = "insert into user (`user_id`, `user_pw`, `name`) values ( ?,  sha2(?, 512), ?);";
+
+		MyPreparedStatement = MyConnection->prepareStatement(Query);
+		MyPreparedStatement->setString(1, UserID);
+		MyPreparedStatement->setString(2, Password);
+		MyPreparedStatement->setString(3, Name);
+		MyResultSet = MyPreparedStatement->executeQuery();
+
+		std::cout << Query << std::endl;
+	}
+	catch (sql::SQLException E)
+	{
+		std::cout << "이미 사용하는 아이디 입니다.";
+
+		return false;
+	}
+
+	return true;
+}
+
+bool Logout(std::string UserID, std::string Password)
+{
+	//서버 한대로 작업, 서비스?
+	return true;
+}
+
 
 void DisconnectSocket(SOCKET DisconnectedSocket, fd_set* Sockets)
 {
@@ -50,7 +144,11 @@ void DisconnectSocket(SOCKET DisconnectedSocket, fd_set* Sockets)
 	
 	//dangling pointer
 	Session* FindSession = MySessionManager.GetSession(ClosedSocket);
-	MySessionManager.Delete(*FindSession);
+
+	if (FindSession)
+	{
+		MySessionManager.Delete(*FindSession);
+	}
 
 
 	//모든 유저한테 이동 패킷 보내줌
@@ -73,35 +171,66 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer)
 
 			auto LoginPacket = UserPacketData->data_as_C2S_Login();
 
-			Session InSession;
-			InSession.ClientSocket = ProcessSocket;
-			InSession.UserID = LoginPacket->user_id()->c_str();
-			InSession.X = rand() % 640;
-			InSession.Y = rand() % 480;
-			InSession.R = rand() % 255;
-			InSession.G = rand() % 255;
-			InSession.B = rand() % 255;
-
-			InSession.Shape = 65 + (rand() % 26);
-
-			MySessionManager.Add(InSession);
-			//접속 한 아이한테 확인 패킷(S2C_Login)
+			bool Result = Login(LoginPacket->user_id()->c_str(),
+				LoginPacket->user_pw()->c_str());
 
 			flatbuffers::FlatBufferBuilder SendBuilder;
 
-			auto S2C_Login_Data = UserPacket::CreateS2C_Login(
-				SendBuilder,
-				(uint16_t)ProcessSocket,
-				SendBuilder.CreateString("Welcome.")
-			);
+			if (Result)
+			{
+				std::cout << "로그인에 성공 했습니다" << endl;
 
-			auto UserPacketData = UserPacket::CreatePacketData(
-				SendBuilder,
-				UserPacket::PacketType_S2C_Login,
-				S2C_Login_Data.Union()
-			);
+				Session InSession;
+				InSession.ClientSocket = ProcessSocket;
+				InSession.UserID = LoginPacket->user_id()->c_str();
+				InSession.X = rand() % 640;
+				InSession.Y = rand() % 480;
+				InSession.R = rand() % 255;
+				InSession.G = rand() % 255;
+				InSession.B = rand() % 255;
 
-			SendBuilder.Finish(UserPacketData);
+				InSession.Shape = 65 + (rand() % 26);
+
+				MySessionManager.Add(InSession);
+				//접속 한 아이한테 확인 패킷(S2C_Login)
+				auto S2C_Login_Data = UserPacket::CreateS2C_Login(
+					SendBuilder,
+					(uint16_t)ProcessSocket,
+					SendBuilder.CreateString("Welcome."),
+					SendBuilder.CreateString("qw3oddpui2"),
+					true
+				);
+
+				auto UserPacketData = UserPacket::CreatePacketData(
+					SendBuilder,
+					UserPacket::PacketType_S2C_Login,
+					S2C_Login_Data.Union()
+				);
+
+				SendBuilder.Finish(UserPacketData);
+			}
+			else
+			{
+				std::cout << "로그인에 실패 했습니다" << endl;
+
+				auto S2C_Login_Data = UserPacket::CreateS2C_Login(
+					SendBuilder,
+					(uint16_t)ProcessSocket,
+					SendBuilder.CreateString("Failed."),
+					SendBuilder.CreateString(""),
+					false
+				);
+
+				auto UserPacketData = UserPacket::CreatePacketData(
+					SendBuilder,
+					UserPacket::PacketType_S2C_Login,
+					S2C_Login_Data.Union()
+				);
+
+				SendBuilder.Finish(UserPacketData);
+			}
+
+
 			SendAll(ProcessSocket, SendBuilder);
 
 			//접속한 모든 유저한테 현재 모든 유저의 정보를 보내준다.
@@ -233,6 +362,34 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer)
 			}
 		}
 		break;
+
+		case UserPacket::PacketType_C2S_Signup:
+		{
+			auto SignupPacket = UserPacketData->data_as_C2S_Signup();
+
+			bool Result = Signup(SignupPacket->user_id()->c_str(),
+				SignupPacket->user_pw()->c_str(),
+				SignupPacket->name()->c_str()
+			);
+
+			flatbuffers::FlatBufferBuilder SendBuilder;
+
+			auto S2C_ColorData = UserPacket::CreateS2C_Signup(
+				SendBuilder,
+				SendBuilder.CreateString(Result ? "가입 성공했습니다." : "가입에 실패 했습니다."),
+				Result
+			);
+
+			auto UserPacketData = UserPacket::CreatePacketData(
+				SendBuilder,
+				UserPacket::PacketType_S2C_Signup,
+				S2C_ColorData.Union()
+			);
+
+			SendBuilder.Finish(UserPacketData);
+			SendAll(ProcessSocket, SendBuilder);
+		}
+		break;
 	}
 
 
@@ -262,7 +419,7 @@ int main()
 
 	listen(ListenSocket, SOMAXCONN);
 
-
+	ConnectDB();
 
 	//blocking, synchronous(TimeOut)
 	TIMEVAL TimeOut;
