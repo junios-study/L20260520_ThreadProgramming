@@ -376,7 +376,7 @@ void ProcessPacket(SOCKET ProcessSocket, const char* InBuffer)
 
 			auto S2C_ColorData = UserPacket::CreateS2C_Signup(
 				SendBuilder,
-				SendBuilder.CreateString(Result ? "가입 성공했습니다." : "가입에 실패 했습니다."),
+				SendBuilder.CreateString(Result ? u8"가입 성공했습니다." : u8"가입에 실패 했습니다."),
 				Result
 			);
 
