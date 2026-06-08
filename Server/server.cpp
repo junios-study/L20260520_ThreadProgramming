@@ -82,6 +82,11 @@ bool Signup(std::string UserID, std::string Password, std::string Name)
 {
 	try
 	{
+		if (UserID.empty() || Password.empty() || Name.empty())
+		{
+			throw sql::SQLException("아이디나 비밀번호나 이름이 없습니다.");
+		}
+
 		//SQL X
 		sql::SQLString Query = "insert into user (`user_id`, `user_pw`, `name`) values ( ?,  sha2(?, 512), ?);";
 
@@ -95,7 +100,7 @@ bool Signup(std::string UserID, std::string Password, std::string Name)
 	}
 	catch (sql::SQLException E)
 	{
-		std::cout << "이미 사용하는 아이디 입니다.";
+		std::cout << E.what() << endl;
 
 		return false;
 	}
