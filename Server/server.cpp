@@ -64,7 +64,7 @@ bool Login(std::string UserID, std::string Password)
 
 	std::cout << Query << std::endl;
 
-	if (MyResultSet->rowsCount() == 0)
+	if (MyResultSet->rowsCount() == 0 || UserID.empty() || Password.empty())
 	{
 		//Redis와 같은 캐시 서버에 저장
 		//hash 키값을 전송함.
